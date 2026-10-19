@@ -9,7 +9,7 @@ secret; the App key travels from each caller as a secret.
 
 | File                       | Called from                                         | Does                                                       |
 | -------------------------- | --------------------------------------------------- | ---------------------------------------------------------- |
-| `release.yml`              | a job after the production deploy, or after CI on `main` | next version from the Conventional Commits, tag, release |
+| `release.yml`              | a job after the production deploy, or after CI on `main` | next version from the Conventional Commits, tag, release whose "What's Changed" groups the commits (Breaking changes, Features, Fixes, Other) |
 | `dependabot-automerge.yml` | the last job of CI, on Dependabot pull requests      | squash-merges patch and minor updates with the App token   |
 | `back-merge.yml`           | a push to `main`, in repositories with `develop`     | merges `main` into `develop` with the App token            |
 | `promote.yml`              | `workflow_dispatch`, in repositories with `develop`  | fast-forwards `main` to a `develop` whose CI is green      |

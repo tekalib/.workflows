@@ -12,6 +12,7 @@ public repositories can call it. Stage: production.
 ```bash
 pipx run --spec actionlint-py==1.7.12.25 actionlint   # lint every workflow
 bash tests/release-bump-test.sh                       # version logic of release.yml
+bash tests/release-notes-test.sh                      # release notes block of release.yml, run as is
 ```
 
 ## Conventions

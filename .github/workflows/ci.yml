@@ -14,7 +14,7 @@ env:
 
 jobs:
   verify:
-    name: Verify (actionlint · bump test)
+    name: Verify (actionlint · bump and notes tests)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -22,6 +22,7 @@ jobs:
           persist-credentials: false
       - run: pipx run --spec "$ACTIONLINT" actionlint
       - run: bash tests/release-bump-test.sh
+      - run: bash tests/release-notes-test.sh
 
   # This repository calls its own workflows by path, so a change is exercised here first.
   automerge:
