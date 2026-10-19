@@ -50,4 +50,5 @@ renamed, a secret added) is a major: `feat!:` in the pull request title.
 
 `ci.yml` runs actionlint and `tests/release-bump-test.sh`, then calls the workflows of this very
 commit by path, so a change runs here before any caller pins it. `release.yml` tags `main` after
-each green CI.
+a green CI only when one of the five reusable workflows changed: every caller adopts a release
+within a day, and a site that adopts one redeploys production.

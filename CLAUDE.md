@@ -22,6 +22,8 @@ bash tests/release-bump-test.sh                       # version logic of release
   is the default `client-id` input, its key always arrives from the caller as `app-key`.
 - Every `uses:` is a commit SHA with its tag in a comment, here and in every caller. zizmor must stay
   free of high findings: `pipx run zizmor --offline .github`.
+- A release is cut only when a reusable workflow changes (`changes` job of `ci.yml`); a docs or
+  test change ships nothing to the callers.
 - `tests/release-bump-test.sh` mirrors the "Compute the next version" step: change both together.
 - Organization rules, rulesets and naming live in the organization's private manual.
 

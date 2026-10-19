@@ -34,9 +34,31 @@ jobs:
     secrets:
       app-key: ${{ secrets.AUTOMATION_APP_KEY }}
 
-  release:
-    needs: [verify]
+  # Every caller adopts a release within a day, and a site that adopts one redeploys production:
+  # only a change to a reusable workflow is worth one. Docs, tests and this file are not.
+  changes:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    outputs:
+      reusable: ${{ steps.diff.outputs.reusable }}
+    steps:
+      - id: diff
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          files=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BEFORE...$SHA" --jq '.files[].filename')
+          if grep -qxE '\.github/workflows/(release|dependabot-automerge|back-merge|promote|issues)\.yml' <<< "$files"; then
+            echo "reusable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No reusable workflow changed, no release."
+            echo "reusable=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  release:
+    needs: [verify, changes]
+    if: needs.changes.outputs.reusable == 'true'
     uses: ./.github/workflows/release.yml
     permissions:
       contents: write
