@@ -7,7 +7,7 @@ updates:
     directory: /
     schedule:
       interval: daily # a tekalib/.workflows release lands within a day; others still wait 7
-      time: '05:00'
+      time: '10:00'
       timezone: Europe/Paris
     cooldown: # a hijacked release is usually pulled within days; never be its first install
       default-days: 7
