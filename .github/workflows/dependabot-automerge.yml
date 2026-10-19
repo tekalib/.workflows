@@ -1,0 +1,74 @@
+name: Dependabot auto-merge
+
+# Reusable. Squash-merges a Dependabot pull request unless it is a major update. The caller
+# runs it as the last job of its CI, after every check passed.
+on:
+  workflow_call:
+    inputs:
+      ecosystems:
+        description: Space-separated Dependabot ecosystems allowed to merge (`github_actions`). Empty means all.
+        type: string
+        default: ''
+      client-id:
+        description: Client ID of the GitHub App that merges. Public, not a secret.
+        type: string
+        default: Iv23liOK1jYJTYdTKpD5 # tekalib-automation
+    secrets:
+      app-key:
+        description: Private key of that App. On a Dependabot run, only the Dependabot secrets are readable.
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  automerge:
+    name: Auto-merge Dependabot (patch/minor)
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: dependabot/fetch-metadata@v3
+        id: metadata
+
+      - name: Decide
+        id: decide
+        env:
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          ECOSYSTEM: ${{ steps.metadata.outputs.package-ecosystem }}
+          ALLOWED: ${{ inputs.ecosystems }}
+        run: |
+          merge=true
+          if [ "$UPDATE_TYPE" = version-update:semver-major ]; then
+            echo "Major update, left for a human."; merge=false
+          elif [ -n "$ALLOWED" ] && ! grep -qw -- "$ECOSYSTEM" <<< "$ALLOWED"; then
+            echo "$ECOSYSTEM is not in '$ALLOWED', left for a human."; merge=false
+          fi
+          echo "merge=$merge" >> "$GITHUB_OUTPUT"
+
+      # An App token, not GITHUB_TOKEN: a merge made with GITHUB_TOKEN starts no workflow, so CI,
+      # the deploy and the release would never run on it, and it may not touch .github/workflows/.
+      - uses: actions/create-github-app-token@v3
+        if: steps.decide.outputs.merge == 'true'
+        id: token
+        with:
+          client-id: ${{ inputs.client-id }}
+          private-key: ${{ secrets.app-key }}
+          permission-contents: write
+          permission-pull-requests: write
+          permission-workflows: write
+
+      # --body replaces the org-wide PR_BODY squash body, a thousand lines of changelogs on a
+      # grouped update. No --subject: the released version is computed from the PR title.
+      - name: Merge
+        if: steps.decide.outputs.merge == 'true'
+        run: |
+          summary=$(jq -r 'def line: "- \(.dependencyName) \(.newVersion)";
+            if length > 8 then (.[:7][] | line), "- +\(length - 7) more" else .[] | line end' <<<"$UPDATED")
+          gh pr merge --squash --body "$summary" "$PR_URL"
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          UPDATED: ${{ steps.metadata.outputs.updated-dependencies-json }}

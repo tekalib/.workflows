@@ -1,0 +1,154 @@
+name: Issues
+
+# Reusable. GitHub honours `Closes #12` only on pull requests targeting the default branch, and
+# ours target `develop`: there the keyword is ignored, no link is created, and the issue stays
+# open after the merge. These jobs read the issue number from the branch name instead. The caller
+# holds the triggers: pull_request (opened, reopened, closed) on `develop`, issues (closed, reopened).
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  link:
+    name: Link the pull request to its issue
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: read
+
+    steps:
+      # The link is created only while the pull request targets the default branch, and it
+      # survives the switch back to `develop`, the merge included.
+      - name: Link through a round trip to the default branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR: ${{ github.event.pull_request.number }}
+          BASE: ${{ github.event.pull_request.base.ref }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          REPO: ${{ github.repository }}
+        run: |
+          issue=$(printf '%s' "$BRANCH" | sed -nE 's#^[a-z]+/([0-9]+)-.*#\1#p')
+          if [ -z "$issue" ]; then
+            echo "No issue number in '$BRANCH', nothing to link."
+            exit 0
+          fi
+          is_open_issue=$(gh api "repos/$REPO/issues/$issue" \
+            --jq '.pull_request == null and .state == "open"' 2>/dev/null) || {
+            echo "Issue #$issue does not exist."
+            exit 0
+          }
+          if [ "$is_open_issue" != true ]; then
+            echo "#$issue is not an open issue, nothing to link."
+            exit 0
+          fi
+
+          linked() {
+            gh pr view "$PR" --repo "$REPO" --json closingIssuesReferences \
+              --jq "any(.closingIssuesReferences[]; .number == $issue)"
+          }
+          if [ "$(linked)" = true ]; then
+            echo "Already linked to #$issue."
+            exit 0
+          fi
+
+          body=$(gh pr view "$PR" --repo "$REPO" --json body --jq .body)
+          if ! printf '%s' "$body" | grep -qiE "(close[sd]?|fix(e[sd])?|resolve[sd]?) #$issue\b"; then
+            printf '%s\n\nCloses #%s\n' "$body" "$issue" > body.md
+            gh api -X PATCH "repos/$REPO/pulls/$PR" -F body=@body.md --silent
+          fi
+
+          gh api -X PATCH "repos/$REPO/pulls/$PR" -f base="$DEFAULT_BRANCH" --silent
+          for _ in $(seq 1 15); do
+            [ "$(linked)" = true ] && break
+            sleep 2
+          done
+          gh api -X PATCH "repos/$REPO/pulls/$PR" -f base="$BASE" --silent
+
+          if [ "$(linked)" != true ]; then
+            echo "::warning::Pull request #$PR is not linked to issue #$issue, the merge still closes it."
+            exit 0
+          fi
+          echo "Linked to #$issue."
+
+  close:
+    name: Close the linked issue
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      - name: Close the issue named by the branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+          FIELD_ID: IFD_kgDOAtH4hQ
+        run: |
+          issue=$(printf '%s' "$BRANCH" | sed -nE 's#^[a-z]+/([0-9]+)-.*#\1#p')
+          if [ -z "$issue" ]; then
+            echo "No issue number in '$BRANCH', nothing to close."
+            exit 0
+          fi
+          state=$(gh issue view "$issue" --repo "$REPO" --json state --jq .state 2>/dev/null) || {
+            echo "Issue #$issue does not exist."
+            exit 0
+          }
+          if [ "$state" != OPEN ]; then
+            echo "Issue #$issue is already closed."
+            exit 0
+          fi
+          gh issue close "$issue" --repo "$REPO" --reason completed \
+            --comment "Merged into \`develop\` by #${PR}."
+
+          # A close made with GITHUB_TOKEN starts no workflow, so `completed-date` never sees it.
+          read -r id closed_at < <(gh issue view "$issue" --repo "$REPO" --json id,closedAt \
+            --jq '"\(.id) \(.closedAt)"')
+          # shellcheck disable=SC2016 # $issue, $field, $date are GraphQL variables
+          gh api graphql -f issue="$id" -f field="$FIELD_ID" -f date="${closed_at%%T*}" -f query='
+            mutation($issue: ID!, $field: ID!, $date: String!) {
+              setIssueFieldValue(input: {issueId: $issue, issueFields: [{fieldId: $field, dateValue: $date}]}) {
+                issue { number }
+              }
+            }'
+
+  completed-date:
+    name: Stamp the completed date
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+
+    steps:
+      # An `issues` event runs the caller on the default branch, so a new pin of this file
+      # takes effect only once promoted to `main`.
+      - name: Set it on a completed close, clear it otherwise
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_ID: ${{ github.event.issue.node_id }}
+          CLOSED_AT: ${{ github.event.issue.closed_at }}
+          COMPLETED: ${{ github.event.action == 'closed' && github.event.issue.state_reason == 'completed' }}
+          # Organization issue field `Completed date`, shared by every repository and project.
+          FIELD_ID: IFD_kgDOAtH4hQ
+        run: |
+          # shellcheck disable=SC2016 # $issue, $field, $date are GraphQL variables
+          if [ "$COMPLETED" = true ]; then
+            gh api graphql -f issue="$ISSUE_ID" -f field="$FIELD_ID" -f date="${CLOSED_AT%%T*}" -f query='
+              mutation($issue: ID!, $field: ID!, $date: String!) {
+                setIssueFieldValue(input: {issueId: $issue, issueFields: [{fieldId: $field, dateValue: $date}]}) {
+                  issue { number }
+                }
+              }'
+          else
+            gh api graphql -f issue="$ISSUE_ID" -f field="$FIELD_ID" -f query='
+              mutation($issue: ID!, $field: ID!) {
+                setIssueFieldValue(input: {issueId: $issue, issueFields: [{fieldId: $field, delete: true}]}) {
+                  issue { number }
+                }
+              }'
+          fi

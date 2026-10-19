@@ -1,0 +1,52 @@
+name: Back-merge
+
+# Reusable. Merges `main` into `develop`, called on every push to `main`. Every auto-merged
+# Dependabot fix lands on `main`, so without it `develop` falls behind and the next pull request
+# conflicts on the lockfile.
+on:
+  workflow_call:
+    inputs:
+      client-id:
+        description: Client ID of the GitHub App that pushes. Public, not a secret.
+        type: string
+        default: Iv23liOK1jYJTYdTKpD5 # tekalib-automation
+    secrets:
+      app-key:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  back-merge:
+    name: main → develop
+    runs-on: ubuntu-latest
+    concurrency:
+      group: back-merge
+      cancel-in-progress: false
+
+    steps:
+      # An App token, not GITHUB_TOKEN: its push starts CI and the staging deploy. The App sits in
+      # the bypass list of the Trunk Merge Flow ruleset, since this push is no pull request.
+      - uses: actions/create-github-app-token@v3
+        id: token
+        with:
+          client-id: ${{ inputs.client-id }}
+          private-key: ${{ secrets.app-key }}
+          permission-contents: write
+          permission-workflows: write
+
+      - uses: actions/checkout@v7
+        with:
+          ref: develop
+          fetch-depth: 0
+          token: ${{ steps.token.outputs.token }}
+
+      # A conflict fails the job on purpose: resolving it is a human call, and `develop`
+      # is left untouched.
+      - name: Merge main into develop
+        run: |
+          git config user.name 'tekalib-automation[bot]'
+          git config user.email '344575349+tekalib-automation[bot]@users.noreply.github.com'
+          git merge --no-edit origin/main
+          git push origin develop

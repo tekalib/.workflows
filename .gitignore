@@ -1,0 +1,10 @@
+# ── OS / IDE noise ────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# ── AI / Claude Code ──────────────────────────────────────────────────────────
+CLAUDE.local.md
+.claude/settings.local.json

@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  ACTIONLINT: actionlint-py==1.7.12.25
+
+jobs:
+  verify:
+    name: Verify (actionlint · bump test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: pipx run --spec "$ACTIONLINT" actionlint
+      - run: bash tests/release-bump-test.sh
+
+  # This repository calls its own workflows by path, so a change is exercised here first.
+  automerge:
+    needs: [verify]
+    if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
+    uses: ./.github/workflows/dependabot-automerge.yml
+    permissions:
+      contents: read
+      pull-requests: read
+    secrets:
+      app-key: ${{ secrets.AUTOMATION_APP_KEY }}
+
+  release:
+    needs: [verify]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/release.yml
+    permissions:
+      contents: write
+    with:
+      sha: ${{ github.sha }}

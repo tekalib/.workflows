@@ -1,0 +1,82 @@
+name: Release
+
+# Reusable. Tags a commit with the next version and publishes its GitHub release. The caller
+# decides when: after a production deploy, or after a green CI of a push to the default branch.
+on:
+  workflow_call:
+    inputs:
+      sha:
+        description: The commit to tag. It must be on the default branch.
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Tag and publish the release
+    runs-on: ubuntu-latest
+    concurrency: # two pushes in a row would otherwise compute, and race for, the same tag
+      group: release
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.sha }}
+          fetch-depth: 0
+          fetch-tags: true
+
+      # No file holds the version: the last tag does, and the Conventional Commits added
+      # since say how far to move. The strongest signal in the batch wins, it is a maximum
+      # and not a sum, so one `feat!:` among a hundred chores still gives a major.
+      # tests/release-bump-test.sh pins this logic: change both together.
+      - name: Compute the next version
+        id: next
+        run: |
+          last=$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || true)
+          range="${last:+$last..}HEAD"
+          if [ -n "$last" ] && [ "$(git rev-list --count "$range")" -eq 0 ]; then
+            echo "Nothing new since $last, no release."
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          log=$(git log "$range" --format='%s%n%b')
+          version=${last:-v0.0.0}
+          IFS=. read -r major minor patch <<< "${version#v}"
+          minor=${minor:-0}
+          patch=${patch:-0}
+
+          if grep -qE '^[a-z]+(\([^)]+\))?!:|^BREAKING[ -]CHANGE:' <<< "$log"; then
+            major=$((major + 1)); minor=0; patch=0
+          elif grep -qE '^feat(\([^)]+\))?:' <<< "$log"; then
+            minor=$((minor + 1)); patch=0
+          else
+            patch=$((patch + 1))
+          fi
+
+          echo "tag=v$major.$minor.$patch" >> "$GITHUB_OUTPUT"
+          echo "last=$last" >> "$GITHUB_OUTPUT"
+
+      - name: Create the release
+        if: steps.next.outputs.tag != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.next.outputs.tag }}
+          LAST: ${{ steps.next.outputs.last }}
+          SHA: ${{ inputs.sha }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          # Belt and braces: the commit being tagged must be on the default branch.
+          git fetch --no-tags origin "$DEFAULT_BRANCH"
+          if ! git merge-base --is-ancestor "$SHA" "origin/$DEFAULT_BRANCH"; then
+            echo "::error::$SHA is not an ancestor of origin/$DEFAULT_BRANCH, refusing to tag."
+            exit 1
+          fi
+
+          args=(--generate-notes)
+          if [ -n "$LAST" ]; then args+=(--notes-start-tag "$LAST"); fi
+          gh release create "$TAG" --target "$SHA" --title "$TAG" "${args[@]}"

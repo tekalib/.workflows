@@ -1,0 +1,61 @@
+name: Promote
+
+# Reusable. `develop` -> `main` as a fast-forward: no pull request, no squash, no merge commit,
+# so the two trunks stay the same commit and cannot drift. A rejected push means `main` carries
+# a commit `develop` does not have; the back-merge lands it on its own, then run this again.
+on:
+  workflow_call:
+    inputs:
+      client-id:
+        description: Client ID of the GitHub App that pushes. Public, not a secret.
+        type: string
+        default: Iv23liOK1jYJTYdTKpD5 # tekalib-automation
+    secrets:
+      app-key:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  promote:
+    name: develop → main
+    runs-on: ubuntu-latest
+    concurrency:
+      group: promote
+    permissions:
+      contents: read
+      actions: read
+
+    steps:
+      # An App token, not GITHUB_TOKEN: its push starts CI on `main`, hence the production deploy.
+      - uses: actions/create-github-app-token@v3
+        id: token
+        with:
+          client-id: ${{ inputs.client-id }}
+          private-key: ${{ secrets.app-key }}
+          permission-contents: write
+          permission-workflows: write
+
+      - uses: actions/checkout@v7
+        with:
+          ref: develop
+          fetch-depth: 0
+          token: ${{ steps.token.outputs.token }}
+
+      # `main` is meant to be always deployable. Deploy would refuse to ship a red `develop`,
+      # but it would still have landed on the production trunk.
+      - name: Require a green CI on develop
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The run must be for the very commit pushed below, not merely the latest one.
+          conclusion=$(gh run list --branch develop --workflow CI --event push \
+            --commit "$(git rev-parse HEAD)" --limit 1 --json conclusion --jq '.[0].conclusion')
+          if [ "$conclusion" != success ]; then
+            echo "CI on develop at $(git rev-parse --short HEAD): ${conclusion:-none}. Refusing to promote."
+            exit 1
+          fi
+
+      - name: Fast-forward main to develop
+        run: git push origin HEAD:main

@@ -1,0 +1,18 @@
+# Dependabot updates. Security PRs ignore this schedule, the PR limit and the cooldown.
+# Auto-merge policy: the `automerge` job of .github/workflows/ci.yml.
+version: 2
+updates:
+  # Also keeps the actions inside the reusable workflows current, for every caller at once.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+      timezone: Europe/Paris
+    cooldown: # a hijacked release is usually pulled within days; never be its first install
+      default-days: 7
+    labels: [dependencies]
+    groups:
+      actions:
+        patterns: ['*']
