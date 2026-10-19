@@ -3,8 +3,8 @@
 ## Identity
 
 `.workflows`: the reusable GitHub Actions workflows of the `tekalib` organization (release,
-Dependabot auto-merge, back-merge, promote, issues), called at a tag by every `tekalib`
-repository and by personal repositories that follow the same flow. Public, so personal and
+Dependabot auto-merge, back-merge, promote, issues), pinned by commit SHA in every `tekalib`
+repository and in personal repositories that follow the same flow. Public, so personal and
 public repositories can call it. Stage: production.
 
 ## Commands
