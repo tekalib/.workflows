@@ -23,8 +23,8 @@ merge made with `GITHUB_TOKEN` starts no workflow, and it may not touch `.github
 ```yaml
   automerge:
     needs: [verify]
-    if: github.event_name == 'pull_request' && github.actor == 'dependabot[bot]'
-    uses: tekalib/.workflows/.github/workflows/dependabot-automerge.yml@v1.0.0
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
+    uses: tekalib/.workflows/.github/workflows/dependabot-automerge.yml@<commit SHA> # v1.0.1
     permissions:
       contents: read
       pull-requests: read
@@ -32,8 +32,9 @@ merge made with `GITHUB_TOKEN` starts no workflow, and it may not touch `.github
       app-key: ${{ secrets.AUTOMATION_APP_KEY }}
 ```
 
-Pin an exact tag. Dependabot's `github-actions` ecosystem bumps the pin like any action, and
-the caller's auto-merge takes patch and minor bumps. A change that breaks a caller (an input
+Pin the commit SHA of a release, its tag in a comment: a tag can be moved, a SHA cannot.
+Dependabot's `github-actions` ecosystem bumps both like any action, after its 7-day cooldown,
+and the caller's auto-merge takes patch and minor bumps. A change that breaks a caller (an input
 renamed, a secret added) is a major: `feat!:` in the pull request title.
 
 ## Requirements in the caller

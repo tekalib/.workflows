@@ -20,6 +20,8 @@ bash tests/release-bump-test.sh                       # version logic of release
   required one breaks the callers: the pull request title takes a `!`, and the release is a major.
 - Writes go through the `tekalib-automation` App token, never `GITHUB_TOKEN`; the App's Client ID
   is the default `client-id` input, its key always arrives from the caller as `app-key`.
+- Every `uses:` is a commit SHA with its tag in a comment, here and in every caller. zizmor must stay
+  free of high findings: `pipx run zizmor --offline .github`.
 - `tests/release-bump-test.sh` mirrors the "Compute the next version" step: change both together.
 - Organization rules, rulesets and naming live in the organization's private manual.
 

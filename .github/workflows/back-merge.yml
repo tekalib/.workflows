@@ -28,7 +28,7 @@ jobs:
     steps:
       # An App token, not GITHUB_TOKEN: its push starts CI and the staging deploy. The App sits in
       # the bypass list of the Trunk Merge Flow ruleset, since this push is no pull request.
-      - uses: actions/create-github-app-token@v3
+      - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: token
         with:
           client-id: ${{ inputs.client-id }}
@@ -36,11 +36,12 @@ jobs:
           permission-contents: write
           permission-workflows: write
 
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: develop
           fetch-depth: 0
           token: ${{ steps.token.outputs.token }}
+          persist-credentials: true # zizmor: ignore[artipacked] the push below needs it; no artifact is uploaded
 
       # A conflict fails the job on purpose: resolving it is a human call, and `develop`
       # is left untouched.
