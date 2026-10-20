@@ -24,7 +24,7 @@ merge made with `GITHUB_TOKEN` starts no workflow, and it may not touch `.github
   automerge:
     needs: [verify]
     if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
-    uses: tekalib/.workflows/.github/workflows/dependabot-automerge.yml@<commit SHA> # v1.0.1
+    uses: tekalib/.workflows/.github/workflows/dependabot-automerge.yml@<commit SHA> # vX.Y.Z
     permissions:
       contents: read
       pull-requests: read
