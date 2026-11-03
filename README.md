@@ -22,7 +22,7 @@ merge made with `GITHUB_TOKEN` starts no workflow, and it may not touch `.github
 
 ```yaml
   automerge:
-    needs: [verify]
+    needs: [ci-passed]
     if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
     uses: tekalib/.workflows/.github/workflows/dependabot-automerge.yml@<commit SHA> # vX.Y.Z
     permissions:
@@ -31,6 +31,9 @@ merge made with `GITHUB_TOKEN` starts no workflow, and it may not touch `.github
     secrets:
       app-key: ${{ secrets.AUTOMATION_APP_KEY }}
 ```
+
+`ci-passed` is the caller's `CI passed` job, the check the organization requires: `gh pr merge`
+refuses a pull request while it is pending.
 
 Pin the commit SHA of a release, its tag in a comment: a tag can be moved, a SHA cannot.
 Dependabot's `github-actions` ecosystem bumps both like any action, with no cooldown (callers

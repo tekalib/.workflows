@@ -24,9 +24,20 @@ jobs:
       - run: bash tests/release-bump-test.sh
       - run: bash tests/release-notes-test.sh
 
+  # The one check the Trunk Merge Flow ruleset requires, same name in every repository: it needs
+  # every other job. always(), because a job skipped after a failed need reports success.
+  ci-passed:
+    name: CI passed
+    needs: [verify]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
+
   # This repository calls its own workflows by path, so a change is exercised here first.
   automerge:
-    needs: [verify]
+    needs: [ci-passed]
     if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
     uses: ./.github/workflows/dependabot-automerge.yml
     permissions:
