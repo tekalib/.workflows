@@ -40,6 +40,9 @@ major is flagged either way; the `ci-passed` input keeps a red patch or minor un
 matters where no ruleset blocks the merge (private repositories on GitHub Free). Without a
 `CI passed` job, pass `${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}`.
 
+Every job runs on `ubuntu-slim`: they only call `git`, `gh` and `jq`, and a 1 vCPU minute costs a
+third of a standard one in a private caller.
+
 Pin the commit SHA of a release, its tag in a comment: a tag can be moved, a SHA cannot.
 Dependabot's `github-actions` ecosystem bumps both like any action, with no cooldown (callers
 exclude `tekalib/.workflows*` from it), and the caller's auto-merge takes patch and minor bumps. A change that breaks a caller (an input

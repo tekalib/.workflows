@@ -20,7 +20,7 @@ permissions:
 jobs:
   back-merge:
     name: main → develop
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     concurrency:
       group: back-merge
       cancel-in-progress: false

@@ -16,7 +16,7 @@ permissions:
 jobs:
   release:
     name: Tag and publish the release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     concurrency: # two pushes in a row would otherwise compute, and race for, the same tag
       group: release
     permissions:
