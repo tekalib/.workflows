@@ -20,7 +20,7 @@ permissions:
 jobs:
   promote:
     name: develop → main
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-slim
     concurrency:
       group: promote
     permissions:

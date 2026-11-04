@@ -38,11 +38,13 @@ jobs:
   # This repository calls its own workflows by path, so a change is exercised here first.
   automerge:
     needs: [ci-passed]
-    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]' }}
     uses: ./.github/workflows/dependabot-automerge.yml
     permissions:
       contents: read
       pull-requests: read
+    with:
+      ci-passed: ${{ needs.ci-passed.result == 'success' }}
     secrets:
       app-key: ${{ secrets.AUTOMATION_APP_KEY }}
 

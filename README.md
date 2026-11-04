@@ -10,7 +10,7 @@ secret; the App key travels from each caller as a secret.
 | File                       | Called from                                         | Does                                                       |
 | -------------------------- | --------------------------------------------------- | ---------------------------------------------------------- |
 | `release.yml`              | a job after the production deploy, or after CI on `main` | next version from the Conventional Commits, tag, release whose "What's Changed" groups the commits (Breaking changes, Features, Fixes, Other) |
-| `dependabot-automerge.yml` | the last job of CI, on Dependabot pull requests      | squash-merges patch and minor updates with the App token   |
+| `dependabot-automerge.yml` | the last job of CI, on Dependabot pull requests      | squash-merges a green patch or minor with the App token; on a major, requests the maintainer's review, assigns them and trims the body to one line per dependency, Dependabot's changelog kept as a comment |
 | `back-merge.yml`           | a push to `main`, in repositories with `develop`     | merges `main` into `develop` with the App token            |
 | `promote.yml`              | `workflow_dispatch`, in repositories with `develop`  | fast-forwards `main` to a `develop` whose CI is green      |
 | `issues.yml`               | pull requests into `develop`, issue close/reopen     | links and closes the issue named by the branch             |
@@ -23,17 +23,25 @@ merge made with `GITHUB_TOKEN` starts no workflow, and it may not touch `.github
 ```yaml
   automerge:
     needs: [ci-passed]
-    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
+    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]' }}
     uses: tekalib/.workflows/.github/workflows/dependabot-automerge.yml@<commit SHA> # vX.Y.Z
     permissions:
       contents: read
       pull-requests: read
+    with:
+      ci-passed: ${{ needs.ci-passed.result == 'success' }}
     secrets:
       app-key: ${{ secrets.AUTOMATION_APP_KEY }}
 ```
 
 `ci-passed` is the caller's `CI passed` job, the check the organization requires: `gh pr merge`
-refuses a pull request while it is pending.
+refuses a pull request while it is pending. `!cancelled()` runs the job when CI fails too, so a
+major is flagged either way; the `ci-passed` input keeps a red patch or minor unmerged, which
+matters where no ruleset blocks the merge (private repositories on GitHub Free). Without a
+`CI passed` job, pass `${{ !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled') }}`.
+
+Every job runs on `ubuntu-slim`: they only call `git`, `gh` and `jq`, and a 1 vCPU minute costs a
+third of a standard one in a private caller.
 
 Pin the commit SHA of a release, its tag in a comment: a tag can be moved, a SHA cannot.
 Dependabot's `github-actions` ecosystem bumps both like any action, with no cooldown (callers
