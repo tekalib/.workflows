@@ -5,13 +5,9 @@ name: Promote
 # a commit `develop` does not have; the back-merge lands it on its own, then run this again.
 on:
   workflow_call:
-    inputs:
-      client-id:
-        description: Client ID of the GitHub App that pushes. Public, not a secret.
-        type: string
-        default: Iv23liOK1jYJTYdTKpD5 # tekalib-automation
     secrets:
-      app-key:
+      AUTOMATION_APP_KEY:
+        description: Passed by name; its value is the secret of the caller's `automation` environment.
         required: true
 
 permissions:
@@ -21,6 +17,10 @@ jobs:
   promote:
     name: develop → main
     runs-on: ubuntu-slim
+    # The App key is a secret of this environment of the caller, which only `main` may use.
+    environment:
+      name: automation
+      deployment: false
     concurrency:
       group: promote
     permissions:
@@ -32,8 +32,8 @@ jobs:
       - uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
         id: token
         with:
-          client-id: ${{ inputs.client-id }}
-          private-key: ${{ secrets.app-key }}
+          client-id: ${{ vars.AUTOMATION_CLIENT_ID }}
+          private-key: ${{ secrets.AUTOMATION_APP_KEY }}
           permission-contents: write
           permission-workflows: write
 

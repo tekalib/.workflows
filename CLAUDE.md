@@ -18,8 +18,9 @@ bash tests/release-test.sh                            # version and notes block 
 
 - Every input, secret and output of a `workflow_call` is a public interface. Renaming or adding a
   required one breaks the callers: the pull request title takes a `!`, and the release is a major.
-- Writes to a branch go through the `tekalib-automation` App token, never `GITHUB_TOKEN`; the App's Client ID
-  is the default `client-id` input, its key always arrives from the caller as `app-key`.
+- Writes to a branch go through the caller's App token, never `GITHUB_TOKEN`. The job that mints
+  it runs in the caller's `automation` environment, which holds the key (`AUTOMATION_APP_KEY`):
+  never read it from anywhere else. The public Client ID is the variable `AUTOMATION_CLIENT_ID`.
 - Every `uses:` is a commit SHA with its tag in a comment, here and in every caller. zizmor must stay
   free of high findings: `pipx run zizmor --offline .github`.
 - A release is cut only when a reusable workflow changes (`changes` job of `ci.yml`); a docs or
