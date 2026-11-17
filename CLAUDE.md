@@ -19,7 +19,7 @@ bash tests/release-notes-test.sh                      # release notes block of r
 
 - Every input, secret and output of a `workflow_call` is a public interface. Renaming or adding a
   required one breaks the callers: the pull request title takes a `!`, and the release is a major.
-- Writes go through the `tekalib-automation` App token, never `GITHUB_TOKEN`; the App's Client ID
+- Writes to a branch go through the `tekalib-automation` App token, never `GITHUB_TOKEN`; the App's Client ID
   is the default `client-id` input, its key always arrives from the caller as `app-key`.
 - Every `uses:` is a commit SHA with its tag in a comment, here and in every caller. zizmor must stay
   free of high findings: `pipx run zizmor --offline .github`.

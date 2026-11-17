@@ -15,7 +15,7 @@ secret; the App key travels from each caller as a secret.
 | `promote.yml`              | `workflow_dispatch`, in repositories with `develop`  | fast-forwards `main` to a `develop` whose CI is green      |
 | `issues.yml`               | pull requests into `develop`, issue close/reopen     | links and closes the issue named by the branch             |
 
-Every write goes through the `tekalib-automation` GitHub App, never `GITHUB_TOKEN`: a push or a
+Every write to a branch goes through the `tekalib-automation` GitHub App, never `GITHUB_TOKEN`: a push or a
 merge made with `GITHUB_TOKEN` starts no workflow, and it may not touch `.github/workflows/`.
 
 ## Calling one
