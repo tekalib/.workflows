@@ -5,8 +5,13 @@ repositories that follow the same flow. Public on purpose: a reusable workflow i
 repository can only be called by private repositories of the same owner. Nothing here is
 secret; the App key travels from each caller as a secret.
 
-How a version is computed is written once, in [`docs/REFERENCE.md`](docs/REFERENCE.md): the
-manuals of both accounts link there.
+<p align="center">
+  <a href="https://github.com/tekalib/.workflows/actions/workflows/ci.yml"><img src="https://github.com/tekalib/.workflows/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
+  <a href="https://github.com/tekalib/.workflows/releases/latest"><img src="https://img.shields.io/github/v/release/tekalib/.workflows?sort=semver" alt="Latest release"></a>
+</p>
+
+The rules every caller follows, how a version is computed and how a README starts, are written
+once, in [`docs/REFERENCE.md`](docs/REFERENCE.md): the manuals of both accounts link there.
 
 ## Workflows
 

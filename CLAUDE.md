@@ -24,8 +24,8 @@ bash tests/release-test.sh                            # version and notes block 
   free of high findings: `pipx run zizmor --offline .github`.
 - A release is cut only when a reusable workflow changes (`changes` job of `ci.yml`); a docs or
   test change ships nothing to the callers.
-- `docs/REFERENCE.md` is the only written copy of the versioning rule every caller follows: the
-  manuals of both accounts link to it. A rule change updates it, the code and
+- `docs/REFERENCE.md` is the only written copy of the rules every caller follows (versioning,
+  README header): the manuals of both accounts link to it. A rule change updates it, the code and
   `tests/release-test.sh` in the same pull request.
 - Organization rules, rulesets and naming live in the organization's private manual.
 
