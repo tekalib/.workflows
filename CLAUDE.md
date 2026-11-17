@@ -11,8 +11,7 @@ public repositories can call it. Stage: production.
 
 ```bash
 pipx run --spec actionlint-py==1.7.12.25 actionlint   # lint every workflow
-bash tests/release-bump-test.sh                       # version logic of release.yml
-bash tests/release-notes-test.sh                      # release notes block of release.yml, run as is
+bash tests/release-test.sh                            # version and notes block of release.yml, run as is
 ```
 
 ## Conventions
@@ -25,7 +24,9 @@ bash tests/release-notes-test.sh                      # release notes block of r
   free of high findings: `pipx run zizmor --offline .github`.
 - A release is cut only when a reusable workflow changes (`changes` job of `ci.yml`); a docs or
   test change ships nothing to the callers.
-- `tests/release-bump-test.sh` mirrors the "Compute the next version" step: change both together.
+- `docs/REFERENCE.md` is the only written copy of the versioning rule every caller follows: the
+  manuals of both accounts link to it. A rule change updates it, the code and
+  `tests/release-test.sh` in the same pull request.
 - Organization rules, rulesets and naming live in the organization's private manual.
 
 ## Guardrails

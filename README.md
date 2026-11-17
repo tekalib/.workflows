@@ -5,11 +5,14 @@ repositories that follow the same flow. Public on purpose: a reusable workflow i
 repository can only be called by private repositories of the same owner. Nothing here is
 secret; the App key travels from each caller as a secret.
 
+How a version is computed is written once, in [`docs/REFERENCE.md`](docs/REFERENCE.md): the
+manuals of both accounts link there.
+
 ## Workflows
 
 | File                       | Called from                                         | Does                                                       |
 | -------------------------- | --------------------------------------------------- | ---------------------------------------------------------- |
-| `release.yml`              | a job after the production deploy, or after CI on `main` | next version from the Conventional Commits, tag, release whose "What's Changed" groups the commits (Breaking changes, Features, Fixes, Other) |
+| `release.yml`              | a job after the production deploy, or after CI on `main` | next version from the Conventional Commits ([rules](docs/REFERENCE.md#versioning)), tag, release whose "What's Changed" groups the commits (Breaking changes, Features, Fixes, Other) |
 | `dependabot-automerge.yml` | the last job of CI, on Dependabot pull requests      | squash-merges a green patch or minor with the App token, only while the pull request holds Dependabot's single commit; on a major or an update of unknown type, requests the maintainer's review, assigns them and trims the body to one line per dependency, Dependabot's changelog kept as a comment |
 | `back-merge.yml`           | a push to `main`, in repositories with `develop`     | merges `main` into `develop` with the App token            |
 | `promote.yml`              | `workflow_dispatch`, in repositories with `develop`  | fast-forwards `main` to a `develop` whose CI is green      |
@@ -62,7 +65,8 @@ renamed, a secret added) is a major: `feat!:` in the pull request title.
 
 ## Developing
 
-`ci.yml` runs actionlint and `tests/release-bump-test.sh`, then calls the workflows of this very
-commit by path, so a change runs here before any caller pins it. `release.yml` tags `main` after
-a green CI only when one of the five reusable workflows changed: every caller adopts a release
-within a day, and a site that adopts one redeploys production.
+`ci.yml` runs actionlint and `tests/release-test.sh`, which runs the version and notes block of
+`release.yml` as is, then calls the workflows of this very commit by path, so a change runs here
+before any caller pins it. `release.yml` tags `main` after a green CI only when one of the five
+reusable workflows changed: every caller adopts a release within a day, and a site that adopts
+one redeploys production.

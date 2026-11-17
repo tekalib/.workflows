@@ -14,15 +14,14 @@ env:
 
 jobs:
   verify:
-    name: Verify (actionlint · bump and notes tests)
+    name: Verify (actionlint · release test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - run: pipx run --spec "$ACTIONLINT" actionlint
-      - run: bash tests/release-bump-test.sh
-      - run: bash tests/release-notes-test.sh
+      - run: bash tests/release-test.sh
 
   # The one check the Trunk Merge Flow ruleset requires, same name in every repository: it needs
   # every other job. always(), because a job skipped after a failed need reports success.
