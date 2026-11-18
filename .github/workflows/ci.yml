@@ -14,15 +14,14 @@ env:
 
 jobs:
   verify:
-    name: Verify (actionlint · bump and notes tests)
+    name: Verify (actionlint · release test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - run: pipx run --spec "$ACTIONLINT" actionlint
-      - run: bash tests/release-bump-test.sh
-      - run: bash tests/release-notes-test.sh
+      - run: bash tests/release-test.sh
 
   # The one check the Trunk Merge Flow ruleset requires, same name in every repository: it needs
   # every other job. always(), because a job skipped after a failed need reports success.
@@ -34,19 +33,6 @@ jobs:
     steps:
       - if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: exit 1
-
-  # This repository calls its own workflows by path, so a change is exercised here first.
-  automerge:
-    needs: [ci-passed]
-    if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]' }}
-    uses: ./.github/workflows/dependabot-automerge.yml
-    permissions:
-      contents: read
-      pull-requests: read
-    with:
-      ci-passed: ${{ needs.ci-passed.result == 'success' }}
-    secrets:
-      app-key: ${{ secrets.AUTOMATION_APP_KEY }}
 
   # Every caller adopts a release within a day, and a site that adopts one redeploys production:
   # only a change to a reusable workflow is worth one. Docs, tests and this file are not.

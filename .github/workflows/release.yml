@@ -30,70 +30,55 @@ jobs:
           fetch-tags: true
           persist-credentials: false
 
-      # No file holds the version: the last tag does, and the Conventional Commits added
-      # since say how far to move. The strongest signal in the batch wins, it is a maximum
-      # and not a sum, so one `feat!:` among a hundred chores still gives a major.
-      # tests/release-bump-test.sh pins this logic: change both together.
-      - name: Compute the next version
+      # No file holds the version: the highest `vX.Y.Z` tag does, and the Conventional Commits no
+      # tag contains yet say how far to move (docs/REFERENCE.md § Versioning). One parse drives
+      # both the bump and the notes; tests/release-test.sh runs this block as is.
+      - name: Compute the version and write the notes
         id: next
-        run: |
-          last=$(git describe --tags --match 'v[0-9]*' --abbrev=0 2>/dev/null || true)
-          range="${last:+$last..}HEAD"
-          if [ -n "$last" ] && [ "$(git rev-list --count "$range")" -eq 0 ]; then
-            echo "Nothing new since $last, no release."
-            echo "tag=" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          log=$(git log "$range" --format='%s%n%b')
-          version=${last:-v0.0.0}
-          IFS=. read -r major minor patch <<< "${version#v}"
-          minor=${minor:-0}
-          patch=${patch:-0}
-
-          if grep -qE '^[a-z]+(\([^)]+\))?!:|^BREAKING[ -]CHANGE:' <<< "$log"; then
-            major=$((major + 1)); minor=0; patch=0
-          elif grep -qE '^feat(\([^)]+\))?:' <<< "$log"; then
-            minor=$((minor + 1)); patch=0
-          else
-            patch=$((patch + 1))
-          fi
-
-          echo "tag=v$major.$minor.$patch" >> "$GITHUB_OUTPUT"
-          echo "last=$last" >> "$GITHUB_OUTPUT"
-
-      # Generated notes list merged pull requests only, and most changes land by a push, a promotion
-      # or a back-merge: built from the commits instead. tests/release-notes-test.sh runs this block.
-      - name: Write the release notes
-        if: steps.next.outputs.tag != ''
         env:
-          TAG: ${{ steps.next.outputs.tag }}
-          LAST: ${{ steps.next.outputs.last }}
           NOTES: ${{ runner.temp }}/notes.md
         run: |
-          # >>> release-notes
-          range="${LAST:+$LAST..}HEAD"
-          breaking='' features='' fixes='' other=''
+          # >>> release
+          tags=$(git tag --merged HEAD --sort=-v:refname --list 'v[0-9]*' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true)
+          last=${tags%%$'\n'*}
+          level=0 breaking='' features='' fixes='' other=''
+          # shellcheck disable=SC2086 # $tags is split on purpose, every tag matched the pattern above
           while read -r hash; do
             subject=$(git show -s --format=%s "$hash")
             body=$(git show -s --format=%b "$hash")
-            if [[ $subject =~ ^[a-z]+\(([^\)]+)\)!?:\ (.*)$ ]]; then
-              line="- **${BASH_REMATCH[1]}**: ${BASH_REMATCH[2]}"
-            elif [[ $subject =~ ^[a-z]+!?:\ (.*)$ ]]; then
-              line="- ${BASH_REMATCH[1]}"
-            else
-              line="- $subject"
+            type='' scope='' bang='' description=$subject
+            if [[ $subject =~ ^([A-Za-z]+)(\(([^\)]+)\))?(!)?:\ (.+)$ ]]; then
+              type=$(tr '[:upper:]' '[:lower:]' <<< "${BASH_REMATCH[1]}")
+              scope=${BASH_REMATCH[3]} bang=${BASH_REMATCH[4]} description=${BASH_REMATCH[5]}
             fi
-            if grep -qE '^[a-z]+(\([^)]+\))?!:' <<< "$subject" || grep -qE '^BREAKING[ -]CHANGE:' <<< "$body"; then
-              breaking+="$line"$'\n'
-            elif grep -qE '^feat(\([^)]+\))?:' <<< "$subject"; then
-              features+="$line"$'\n'
-            elif grep -qE '^fix(\([^)]+\))?:' <<< "$subject"; then
-              fixes+="$line"$'\n'
+            line="- ${scope:+**$scope**: }$description"$'\n'
+            if [ -n "$bang" ] || grep -qE '^BREAKING[ -]CHANGE:' <<< "$body"; then
+              breaking+=$line; level=3
+            elif [ "$type" = feat ]; then
+              features+=$line; [ "$level" -ge 2 ] || level=2
+            elif [ "$type" = fix ]; then
+              fixes+=$line; [ "$level" -ge 1 ] || level=1
             else
-              other+="$line"$'\n'
+              other+=$line; [ "$level" -ge 1 ] || level=1
             fi
-          done < <(git log --no-merges --format=%H "$range")
+          done < <(git log --no-merges --format=%H HEAD --not $tags)
+
+          if [ "$level" -eq 0 ]; then
+            echo "Every commit but merges is already in ${last:-a tag}, no release."
+            echo "tag=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          IFS=. read -r major minor patch <<< "${last#v}"
+          major=${major:-0} minor=${minor:-0} patch=${patch:-0}
+          # On 0.x a breaking change is a minor: 1.0.0 declares a stable API, a person decides it.
+          if [ "$level" -eq 3 ] && [ "$major" -gt 0 ]; then
+            major=$((major + 1)) minor=0 patch=0
+          elif [ "$level" -ge 2 ]; then
+            minor=$((minor + 1)) patch=0
+          else
+            patch=$((patch + 1))
+          fi
+          tag="v$major.$minor.$patch"
 
           {
             echo "## What's Changed"
@@ -101,13 +86,14 @@ jobs:
             [ -n "$features" ] && printf '\n### Features\n\n%s' "$features"
             [ -n "$fixes" ] && printf '\n### Fixes\n\n%s' "$fixes"
             [ -n "$other" ] && printf '\n### Other changes\n\n%s' "$other"
-            if [ -n "$LAST" ]; then
-              printf '\n**Full Changelog**: %s/%s/compare/%s...%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$LAST" "$TAG"
+            if [ -n "$last" ]; then
+              printf '\n**Full Changelog**: %s/%s/compare/%s...%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$last" "$tag"
             else
-              printf '\n**Full Changelog**: %s/%s/commits/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$TAG"
+              printf '\n**Full Changelog**: %s/%s/commits/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$tag"
             fi
           } > "$NOTES"
-          # <<< release-notes
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          # <<< release
           cat "$NOTES"
 
       - name: Create the release
