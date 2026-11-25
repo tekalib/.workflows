@@ -1,8 +1,139 @@
 # Reference
 
-The rules every repository that calls these workflows follows, in the `tekalib` organization and
-the `brei0x` account alike. This is their only written copy: the manuals of both accounts link
-here, and the code that applies them lives next door.
+The rules every repository of the `tekalib` organization and of the `brei0x` account follows.
+One owner runs both, so there is one rule book, and this is its only written copy. Each
+account's private manual holds what differs there and nothing else: how the policy is applied,
+its App, its secrets.
+
+## Branches
+
+- **`main`** is production and the default branch, always deployable.
+- **`develop`** is for a repository that deploys: pull requests land there first, and it feeds
+  the staging environment where one exists. Any other repository may carry one when it needs
+  to, as an exception, and then follows the same flow.
+- **Nobody pushes to a trunk by hand.** The writers are the merge button and the `back-merge` and
+  `promote` workflows.
+- **One branch per task**, `<type>/<description>`, ticket number first when there is one:
+  `feat/12-oauth-google-login`. Types are the Conventional Commits types plus `hotfix` and
+  `release`. The description is `a-z0-9` with single hyphens; `release/vMAJOR.MINOR.PATCH` is
+  the only branch allowed a dot. GitHub enforces the prefix, the description format is on you.
+- **Bot branches** (`dependabot/…`, `revert-…`) belong to their bots.
+
+## From an issue to production
+
+```
+with develop      issue ─► branch ─► PR ─► develop ─► Promote ─► main ─► deploy ─► tag + release
+without develop   issue ─► branch ─► PR ─► main ─► tag + release
+```
+
+1. **Issue, then branch.** `gh issue develop` creates the branch and its link to the issue.
+2. **Pull request** into `develop`, or into `main` where there is no `develop`. Its title is a
+   Conventional Commit: it becomes the squash commit, which the [version](#versioning) is
+   computed from.
+3. **Merge** once `CI passed` is green, or arm it earlier with `gh pr merge --auto --squash`.
+4. **Promote**, where there is a `develop`. `promote.yml` checks that CI is green on the head of
+   `develop`, then fast-forwards `main` to it, so both trunks are the same commit. Never open a
+   pull request from `develop` into `main`: a squash would make the trunks diverge at every
+   release.
+5. **Release.** The push to `main` deploys production where there is one, then `release.yml`
+   tags it and publishes the GitHub release.
+
+What follows from it:
+
+- **Closing the issue.** GitHub honors `Closes #12` only on a pull request into the default
+  branch. Into `develop`, `issues.yml` reads the number from the branch name, links the pull
+  request and closes the issue on merge.
+- **Back-merge.** Dependabot targets `main`, because a security update must reach production at
+  once. `back-merge.yml` merges every push to `main` into `develop` within seconds. A conflict
+  fails the job and leaves `develop` untouched; until someone resolves it, `promote.yml` is
+  rejected.
+- **`workflow_run` trap.** `deploy.yml` fires on `workflow_run`, which always runs the copy on
+  the default branch: a change to it merged into `develop` does nothing until it is promoted.
+
+## CI
+
+- **One required check, `CI passed`.** Every `ci.yml` ends with that job. It needs every other
+  job and runs `if: always()`, because a job skipped after a failed need would report success.
+  The merge ruleset requires that single name, so job names can change without touching a
+  ruleset. A repository whose CI lacks it merges only through a bypass.
+- **CI runs on pull requests and on every push to a trunk.** `promote.yml` reads the run on
+  `develop`; the deploy and the release follow the run on `main`.
+- **Job names** read `<Category> (<what it runs> · …)`, the category one of `Checks` (several
+  fast checks in one job), `Lint`, `Tests`, `E2E tests` or `Build`: the checks list says who
+  does what without opening a log.
+- **Cost.** Every GitHub-hosted job bills at least one minute, so a check that takes seconds is
+  a step of an existing job. A job that only reads its needs or calls `gh`, `git` and `jq` runs
+  on `ubuntu-slim`, a third of the cost of `ubuntu-latest`.
+
+## Dependencies
+
+- **Pinning.** Every `uses:` is a commit SHA with its tag in a comment, because a tag can be
+  moved and a SHA cannot. Both accounts enforce it (`sha_pinning_required`), and zizmor must
+  report nothing before a workflow change merges.
+- **Shared logic.** Every workflow that writes or versions is a thin caller of this repository:
+  change the logic here, never in a copy.
+- **Dependabot** checks daily at 10:00 Europe/Paris, targets `main` and groups minor and patch
+  updates. A third-party release waits a 7-day cooldown; this repository is ours and skips it.
+- **A patch or a minor merges itself.** `automerge.yml` arms GitHub's auto-merge, and GitHub
+  squash-merges once `CI passed` is green, as long as the pull request still holds Dependabot's
+  single commit.
+- **A major waits for a human**, and so does an update whose type Dependabot does not state:
+  review requested, pull request assigned, body trimmed to one line per dependency.
+
+## Policy
+
+Every repository gets the same settings, applied by the `policy/apply.sh` of its owner's private
+manual. Never change one in the GitHub UI: the next run overwrites it.
+
+| Area        | Setting                                                                                          |
+| ----------- | ------------------------------------------------------------------------------------------------ |
+| Actions     | SHA pinning, read-only `GITHUB_TOKEN`, no workflow approves a pull request                       |
+| Merge       | squash only, title `PR_TITLE`, empty body, auto-merge allowed, branch deleted on merge           |
+| Security    | Dependabot alerts and security updates; on public repositories, secret scanning, push protection, private vulnerability reporting and CodeQL |
+| Environment | `automation`, open to `main` only                                                                |
+
+| Ruleset                    | Targets                      | Enforces                                                               | Bypass                           |
+| -------------------------- | ---------------------------- | ---------------------------------------------------------------------- | -------------------------------- |
+| Conventional Branch Naming | all branches                 | creation limited to the allowed prefixes                               | none                             |
+| Trunk Protection           | default branch and `develop` | no deletion, no force-push                                             | none                             |
+| Trunk Merge Flow           | default branch and `develop` | pull request, squash only, threads resolved, signed, `CI passed` green | the owner's admins, its App      |
+
+Why it is shaped this way:
+
+- **`PR_TITLE` is load-bearing.** GitHub's default takes the commit message when the branch
+  holds one commit and the pull request title otherwise, so the version would depend on how the
+  branch was committed.
+- **Prefixes, not patterns.** `branch_name_pattern` is silently ignored outside GitHub
+  Enterprise (tested 2026-09-17), so the naming ruleset blocks creation everywhere and excludes
+  the allowed prefixes.
+- **Bypass on the merge flow only.** `back-merge` and `promote` push trunks through the App, and
+  a back-merge commit is unsigned and has no CI run yet. Admins keep the bypass: discipline
+  guards their hand pushes.
+- **No required approval.** A solo maintainer cannot approve their own pull request.
+- **Branches need not be up to date.** Auto-merge never updates a stale branch, and back-merges
+  move `develop` all day: the strict policy would park every pull request.
+
+## The automation App
+
+Each owner has its own private GitHub App, `tekalib-automation` and `brei0x-automation`. Every
+write a workflow makes to a trunk goes through it, never `GITHUB_TOKEN`: a push made with
+`GITHUB_TOKEN` starts no workflow and may not touch `.github/workflows/`.
+
+- **Scope.** Contents, Pull requests and Workflows read/write and nothing else, installed only
+  on the repositories that call a workflow here with it. Each run mints a token for its own
+  repository that expires within the hour.
+- **One home for the key.** The App bypasses Trunk Merge Flow, so its key can push to `main`. It
+  lives in one place per repository, the secret `AUTOMATION_APP_KEY` of the `automation`
+  environment, with no copy in repository, organization or Dependabot secrets.
+- **A branch cannot read it.** GitHub refuses the environment to a run whose ref is not `main`.
+  Back-merge runs on a push to `main`, promote is dispatched from `main`, and the Dependabot
+  auto-merge runs on `pull_request_target`, whose ref is the base branch.
+- **A name pattern, not "protected branches only".** That option counts classic branch
+  protection rules, not rulesets: with rulesets alone it admits every branch (GitHub community
+  discussion 132387, read 2026-11-17).
+
+What remains: whoever can merge into `main` can change a workflow there and reach the key. Lose
+the key and every promotion, back-merge and Dependabot merge stops.
 
 ## Versioning
 
