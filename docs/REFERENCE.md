@@ -67,7 +67,8 @@ centered, then a rule.
 ```
 
 - **The presentation image** is optional: a banner or a social preview, referenced by a relative
-  path so it follows the branch. Its `alt` says what it shows.
+  path so it follows the branch. Its `alt` says what it shows. It is 2:1, the ratio of GitHub's
+  social preview (1280 × 640), drawn at 2x for the README, so one composition serves both.
 - **Every image or video a README shows lives in `docs/assets/`**, the presentation image
   included: never at the root, in `screenshots/` or loose in `docs/`. A generated image has
   rounded corners on a transparent background, so it sits on GitHub's light and dark themes alike.
