@@ -14,7 +14,7 @@ environment of each caller.
 
 ---
 
-The rules every caller follows, how a version is computed and how a README starts, are written
+The rules both accounts follow, from branches and CI to how a version is computed, are written
 once, in [`docs/REFERENCE.md`](docs/REFERENCE.md): the manuals of both accounts link there.
 
 ## Workflows
@@ -25,7 +25,7 @@ once, in [`docs/REFERENCE.md`](docs/REFERENCE.md): the manuals of both accounts 
 | `dependabot-automerge.yml` | `pull_request_target`, on Dependabot pull requests   | arms GitHub's auto-merge (squash) on a patch or minor with the App token, so it merges once the required check is green, only while the pull request holds Dependabot's single commit; on a major or an update of unknown type, requests the maintainer's review, assigns them and trims the body to one line per dependency, Dependabot's changelog kept as a comment |
 | `back-merge.yml`           | a push to `main`, in repositories with `develop`     | merges `main` into `develop` with the App token            |
 | `promote.yml`              | `workflow_dispatch`, in repositories with `develop`  | fast-forwards `main` to a `develop` whose CI is green      |
-| `issues.yml`               | pull requests into `develop`, issue close/reopen     | links and closes the issue named by the branch             |
+| `issues.yml`               | pull requests into `develop`, issue close/reopen     | links and closes the issue named by the branch; stamps the completed date in an organization |
 
 Every write to a branch goes through the caller's automation GitHub App (`tekalib-automation`,
 `brei0x-automation`), never `GITHUB_TOKEN`: a push or a merge made with `GITHUB_TOKEN` starts no
@@ -91,8 +91,8 @@ renamed, a secret added) is a major: `feat!:` in the pull request title.
 - The variable `AUTOMATION_CLIENT_ID`, the App's public Client ID: once per organization, or
   per repository on a personal account, which has no account-level variable.
 - For `dependabot-automerge.yml`: auto-merge allowed, and a required status check on `main`.
-- For `back-merge.yml` and `promote.yml`: the App in the bypass list of the organization's
-  Trunk Merge Flow ruleset.
+- For `back-merge.yml` and `promote.yml`: the App in the bypass list of the owner's Trunk
+  Merge Flow ruleset.
 
 ## Developing
 
