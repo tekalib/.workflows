@@ -26,6 +26,9 @@ title, so you never choose the number, you write the title.
   uppercase, as the Conventional Commits specification says.
 - **Only the subject sets the type.** A body line starting `feat:`, in a pull request
   description, changes nothing.
+- **A squash commit is the pull request title alone**, `<title> (#n)`: the policy of both accounts
+  sets an empty squash body, and the description stays on the pull request. A pull request
+  therefore declares a breaking change with the `!`.
 - **Every change ships.** Unlike the specification, `chore`, `docs` or `ci` still earn a patch: a
   tag identifies what is in production, and a dependency bump changes production.
 - **`0.x` never jumps to `1.0.0` on its own.** A breaking change there is a minor, as SemVer
@@ -46,7 +49,7 @@ centered, then a rule.
 
 ```markdown
 <p align="center">
-  <img src="<path/to/presentation.png>" alt="<What the image shows>">
+  <img src="docs/assets/<presentation>.webp" alt="<What the image shows>" width="100%">
 </p>
 
 # <Title>
@@ -63,9 +66,12 @@ centered, then a rule.
 ---
 ```
 
-- **The presentation image** is optional: a banner or a social preview, committed in the
-  repository and referenced by a relative path so it follows the branch. Its `alt` says what it
-  shows.
+- **The presentation image** is optional: a banner or a social preview, referenced by a relative
+  path so it follows the branch. Its `alt` says what it shows. It is 2:1, the ratio of GitHub's
+  social preview (1280 × 640), drawn at 2x for the README, so one composition serves both.
+- **Every image or video a README shows lives in `docs/assets/`**, the presentation image
+  included: never at the root, in `screenshots/` or loose in `docs/`. A generated image has
+  rounded corners on a transparent background, so it sits on GitHub's light and dark themes alike.
 - **Each badge carries an icon about its subject.** The workflow badges are GitHub's own, with
   their Octocat. The shields.io badges take the GitHub Octicon that GitHub itself shows for the same
   thing (`tag` for Release, `law` for License), filled `#959da5`, on a `24292e` label, so they look
