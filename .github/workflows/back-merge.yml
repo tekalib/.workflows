@@ -46,8 +46,11 @@ jobs:
       # A conflict fails the job on purpose: resolving it is a human call, and `develop`
       # is left untouched.
       - name: Merge main into develop
+        env:
+          GH_TOKEN: ${{ steps.token.outputs.token }}
+          BOT: ${{ steps.token.outputs.app-slug }}[bot]
         run: |
-          git config user.name 'tekalib-automation[bot]'
-          git config user.email '344575349+tekalib-automation[bot]@users.noreply.github.com'
+          git config user.name "$BOT"
+          git config user.email "$(gh api "users/$BOT" --jq .id)+$BOT@users.noreply.github.com"
           git merge --no-edit origin/main
           git push origin develop
