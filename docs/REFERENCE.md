@@ -57,7 +57,6 @@ centered, then a rule.
 <One paragraph: what the project is and who it is for.>
 
 <p align="center">
-  <a href="https://github.com/<owner>/<repo>/actions/workflows/ci.yml"><img src="https://github.com/<owner>/<repo>/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI"></a>
   <a href="https://github.com/<owner>/<repo>/actions/workflows/deploy.yml"><img src="https://github.com/<owner>/<repo>/actions/workflows/deploy.yml/badge.svg?branch=main" alt="Deploy"></a>
   <a href="https://github.com/<owner>/<repo>/releases/latest"><img src="https://img.shields.io/github/v/release/<owner>/<repo>?sort=semver&label=release&labelColor=24292e&logo=<tag-logo>" alt="Latest release"></a>
   <a href="https://github.com/<owner>/<repo>/blob/main/LICENSE"><img src="https://img.shields.io/github/license/<owner>/<repo>?labelColor=24292e&logo=<law-logo>" alt="License"></a>
@@ -85,8 +84,11 @@ centered, then a rule.
 
 - **The title** is the project's name as people say it; the repository name when it has no
   other.
-- **The badges**, only those that apply, in this order: CI, then Deploy or Publish when that
-  workflow exists, then Release, then License.
+- **The badges**, only those that apply, in this order: one workflow badge, then Release, then
+  License.
+- **One workflow badge**, the one that says whether `main` holds: Deploy (`deploy.yml`, ships to
+  an environment once CI passed) or Publish (`publish.yml`, builds and pushes a package) when the
+  repository has one, CI otherwise. A CI badge beside them repeats what they already prove.
 - **Release on public repositories only.** shields.io cannot read a private repository and would
   show an error, while GitHub's own workflow badges do render in a private repository's README.
 - **A rule** (`---`) closes the header, after a blank line: without it the `---` stays inside the
