@@ -22,7 +22,7 @@ once, in [`docs/REFERENCE.md`](docs/REFERENCE.md): the manuals of both accounts 
 | File                       | Called from                                         | Does                                                       |
 | -------------------------- | --------------------------------------------------- | ---------------------------------------------------------- |
 | `release.yml`              | a job after the production deploy, or after CI on `main` | next version from the Conventional Commits ([rules](docs/REFERENCE.md#versioning)), tag, release whose "What's Changed" groups the commits (Breaking changes, Features, Fixes, Other) |
-| `dependabot-automerge.yml` | `pull_request_target`, on Dependabot pull requests   | arms GitHub's auto-merge (squash) on a patch or minor with the App token, so it merges once the required check is green, only while the pull request holds Dependabot's single commit; on a major or an update of unknown type, requests the maintainer's review, assigns them and trims the body to one line per dependency, Dependabot's changelog kept as a comment |
+| `dependabot-automerge.yml` | `pull_request_target`, on Dependabot pull requests   | arms GitHub's auto-merge (squash) on a patch or minor with the App token, so it merges once the required check is green, only while the pull request holds Dependabot's single commit; on a major or an update of unknown type, requests the maintainer's review, assigns them and trims the body to one line per dependency, Dependabot's changelog kept as a comment; an update it will not merge (ecosystem not allowed, no required check) gets the same review request and assignment |
 | `back-merge.yml`           | a push to `main`, in repositories with `develop`     | merges `main` into `develop` with the App token            |
 | `promote.yml`              | `workflow_dispatch`, in repositories with `develop`  | fast-forwards `main` to a `develop` whose CI is green      |
 | `issues.yml`               | pull requests into `develop`, issue close/reopen     | links and closes the issue named by the branch; stamps the completed date in an organization |
@@ -67,7 +67,8 @@ the called job. `secrets: inherit` would do the same inside `tekalib`, not from 
 
 The job merges nothing itself: it arms auto-merge, and GitHub merges when the required
 `CI passed` check turns green. Where the base branch requires no status check, auto-merge would
-not wait for CI, so the job leaves the pull request to a human. Only an update Dependabot
+not wait for CI, so the job hands the pull request to the maintainer, as it does for an
+ecosystem the caller does not allow. Only an update Dependabot
 declares a patch or a minor is armed: any other type, a missing one included, is flagged like a
 major, CI green or not. The job skips a pull request that holds more than Dependabot's one commit
 (a pushed fix, an "Update branch" merge): a human merges that one.

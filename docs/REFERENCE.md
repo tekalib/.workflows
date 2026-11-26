@@ -79,6 +79,10 @@ What follows from it:
   single commit.
 - **A major waits for a human**, and so does an update whose type Dependabot does not state:
   review requested, pull request assigned, body trimmed to one line per dependency.
+- **A review request from the App means act.** An update that merges itself asks for nothing.
+  One the job will not merge (ecosystem not allowed, no required check) is handed over when it
+  opens: review requested, pull request assigned. An armed update whose check stays red asks
+  for nothing: find it with a search for open Dependabot pull requests.
 
 ## Policy
 
